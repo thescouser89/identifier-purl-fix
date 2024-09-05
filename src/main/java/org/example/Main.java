@@ -5,7 +5,7 @@ import com.github.packageurl.PackageURL;
 import com.github.packageurl.PackageURLBuilder;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.commonjava.atlas.maven.ident.ref.ArtifactRef;
 import org.commonjava.atlas.maven.ident.ref.SimpleArtifactRef;
 import org.commonjava.atlas.maven.ident.util.ArtifactPathInfo;
@@ -38,7 +38,8 @@ public class Main {
     }
 
     public static void processCsvEntry(String[] line) {
-        boolean changed = false;
+        boolean changedIdentifier = false;
+        boolean changedPurl = false;
 
         String id = line[0];
         String path = line[1];
@@ -51,21 +52,48 @@ public class Main {
             newIdentifier = existingIdentifier;
         }
 
-        if (existingIdentifier == null) {
-            changed = true;
-        } else if (!existingIdentifier.equals(newIdentifier)) {
-            changed = true;
+        if (existingIdentifier == null && newIdentifier != null) {
+            changedIdentifier = true;
+        } else if (existingIdentifier != null && !existingIdentifier.equals(newIdentifier)) {
+            changedIdentifier = true;
         }
 
         String newPurl = computePurl(path);
-        if (existingPurl == null || newPurl == null) {
-            changed = true;
-        } else if (!existingPurl.equals(newPurl)) {
-            changed = true;
+
+        if (newPurl == null && existingPurl != null) {
+            newPurl = existingPurl;
         }
 
-        if (changed) {
-            System.out.format("Path: %s\nOld: %s\nNew: %s\n----\n", path, existingIdentifier, newIdentifier);
+        if (existingPurl == null && newPurl != null) {
+            changedPurl = true;
+        } else if (existingPurl != null && !existingPurl.equals(newPurl)) {
+            changedPurl = true;
+        }
+        String sqlRequest = "UPDATE artifact set";
+
+        if (changedIdentifier || changedPurl) {
+            System.out.println("Path: " + path);
+            System.out.println("Id: " + id);
+            if (!changedIdentifier) {
+                System.out.println("Identifier: " + existingIdentifier);
+            } else {
+                sqlRequest += " identifier = '" + newIdentifier + "'";
+                System.out.println("Old Identifier: " + existingIdentifier);
+                System.out.println("New Identifier: " + newIdentifier);
+            }
+            if (!changedPurl) {
+                System.out.println("purl: " + existingPurl);
+            } else {
+                if (sqlRequest.contains("identifier =")) {
+                    sqlRequest += ",";
+                }
+                sqlRequest += " purl = '" + newPurl + "' ";
+                System.out.println("Old purl: " + existingPurl);
+                System.out.println("New purl: " + newPurl);
+            }
+            sqlRequest += "WHERE id = " + id + ";";
+            System.out.println(sqlRequest);
+            System.out.println("-----");
         }
     }
 
