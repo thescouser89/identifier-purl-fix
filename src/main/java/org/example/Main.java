@@ -20,24 +20,26 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-            Reader in = new FileReader("test.csv");
+        // File to read
+        Reader in = new FileReader("test.csv");
 
-            Iterable<CSVRecord> records = CSVFormat.POSTGRESQL_CSV.parse(in);
+        Iterable<CSVRecord> records = CSVFormat.POSTGRESQL_CSV.parse(in);
 
-            // Read the csv line by line and process baby!
-            for (CSVRecord record : records) {
+        // Read the csv line by line and process baby!
+        for (CSVRecord record : records) {
 
-                String[] line = new String[4];
-                line[0] = record.get(0);
-                line[1] = record.get(1);
-                line[2] = record.get(2);
-                line[3] = record.get(3);
+            String[] line = new String[4];
+            line[0] = record.get(0);
+            line[1] = record.get(1);
+            line[2] = record.get(2);
+            line[3] = record.get(3);
 
-                processCsvEntry(line);
-            }
+            processCsvEntry(line);
+        }
     }
 
     public static void processCsvEntry(String[] line) {
+
         boolean changedIdentifier = false;
         boolean changedPurl = false;
 
@@ -48,10 +50,12 @@ public class Main {
 
         String newIdentifier = computeIdentifier(path);
 
-        if (newIdentifier == null && existingIdentifier != null) {
+        // if new identifier generated is null, let's just use the old one for consistency sake
+        if (newIdentifier == null) {
             newIdentifier = existingIdentifier;
         }
 
+        // do checks to see if identifier was changed
         if (existingIdentifier == null && newIdentifier != null) {
             changedIdentifier = true;
         } else if (existingIdentifier != null && !existingIdentifier.equals(newIdentifier)) {
@@ -60,15 +64,19 @@ public class Main {
 
         String newPurl = computePurl(path);
 
-        if (newPurl == null && existingPurl != null) {
+        // if new purl generated is null, let's just use the old one for consistency sake
+        if (newPurl == null) {
             newPurl = existingPurl;
         }
 
+        // do checks to see if purl was changed
         if (existingPurl == null && newPurl != null) {
             changedPurl = true;
         } else if (existingPurl != null && !existingPurl.equals(newPurl)) {
             changedPurl = true;
         }
+
+        // Prepare the SQL statement to run in our DB
         String sqlRequest = "UPDATE artifact set";
 
         if (changedIdentifier || changedPurl) {
@@ -100,6 +108,7 @@ public class Main {
     /**
      * We only need to process the MVN case for the identifier. NPM codebase for pathinfo hasn't changed and we don't
      * need to do anything for generic
+     * Stolen from repository-driver
      *
      * @param path
      * @return
@@ -125,6 +134,12 @@ public class Main {
         return null;
     }
 
+    /**
+     * Stolen from repository-driver
+     *
+     * @param path
+     * @return
+     */
     public static String computePurl(String path) {
         ArtifactPathInfo pathInfo = ArtifactPathInfo.parse(path);
         if (pathInfo == null) {
